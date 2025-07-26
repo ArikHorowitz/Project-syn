@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synthia - IDE for Writers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="importmap">
+    {
+      "imports": {
+          "react": "https://esm.sh/react@18.2.0",
+              "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                  "lucide-react": "https://esm.sh/lucide-react@0.408.0?deps=react",
+                      "@dnd-kit/core": "https://esm.sh/@dnd-kit/core@6.1.0?deps=react",
+                          "@dnd-kit/sortable": "https://esm.sh/@dnd-kit/sortable@8.0.0?deps=react",
+                              "@dnd-kit/utilities": "https://esm.sh/@dnd-kit/utilities@3.2.2",
+                                  "react-resizable-panels": "https://esm.sh/react-resizable-panels@2.0.20?deps=react",
+                                      "immer": "https://esm.sh/immer@10.1.1",
+                                          "tippy.js": "https://esm.sh/tippy.js@6.3.7",
+                                              "@tiptap/react": "https://esm.sh/@tiptap/react@2.5.7?deps=react",
+                                                  "@tiptap/pm/": "https://esm.sh/@tiptap/pm@2.5.7/",
+                                                      "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.5.7?deps=react",
+                                                          "@tiptap/suggestion": "https://esm.sh/@tiptap/suggestion@2.5.7?deps=react",
+                                                              "@tiptap/extension-placeholder": "https://esm.sh/@tiptap/extension-placeholder@2.5.7?deps=react",
+                                                                  "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+                                                                      "react/": "https://esm.sh/react@^19.1.0/",
+                                                                          "@tiptap/core": "https://esm.sh/@tiptap/core@^3.0.7"
+                                                                            }
+                                                                            }
+                                                                            </script>
+
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.408.0?deps=react",
+    "@dnd-kit/core": "https://esm.sh/@dnd-kit/core@6.1.0?deps=react",
+    "@dnd-kit/sortable": "https://esm.sh/@dnd-kit/sortable@8.0.0?deps=react",
+    "@dnd-kit/utilities": "https://esm.sh/@dnd-kit/utilities@3.2.2",
+    "react-resizable-panels": "https://esm.sh/react-resizable-panels@2.0.20?deps=react",
+    "immer": "https://esm.sh/immer@10.1.1",
+    "tippy.js": "https://esm.sh/tippy.js@6.3.7",
+    "@tiptap/react": "https://esm.sh/@tiptap/react@2.5.7?deps=react",
+    "@tiptap/pm/": "https://esm.sh/@tiptap/pm@2.5.7/",
+    "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.5.7?deps=react",
+    "@tiptap/suggestion": "https://esm.sh/@tiptap/suggestion@2.5.7?deps=react",
+    "@tiptap/extension-placeholder": "https://esm.sh/@tiptap/extension-placeholder@2.5.7?deps=react",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "@tiptap/core": "https://esm.sh/@tiptap/core@^3.0.7"
+  }
+}
+</script>
+  <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
+  <style>
+    .ProseMirror {
+      outline: none;
+      font-family: var(--editor-font-family, 'Inter', sans-serif);
+      font-size: var(--editor-font-size, 16px);
+      line-height: var(--editor-line-height, 1.7);
+    }
+
+    .ProseMirror h1,
+    .ProseMirror h2,
+    .ProseMirror h3 {
+      color: #e2e8f0;
+      /* slate-200 */
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+    }
+
+    .ProseMirror h1 {
+      font-size: 2.25rem;
+      line-height: 2.5rem;
+    }
+
+    .ProseMirror h2 {
+      font-size: 1.875rem;
+      line-height: 2.25rem;
+    }
+
+    .ProseMirror h3 {
+      font-size: 1.5rem;
+      line-height: 2rem;
+    }
+
+    .ProseMirror p {
+      margin-bottom: 1em;
+    }
+    
+    .ProseMirror p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      float: left;
+      color: #64748b; /* slate-500 */
+      pointer-events: none;
+      height: 0;
+    }
+
+    .ProseMirror strong {
+      color: #e2e8f0;
+    }
+
+    .ProseMirror em {
+      font-style: italic;
+    }
+
+    .ProseMirror code {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #f87171;
+      /* red-400 */
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .ProseMirror pre {
+      background: #1e293b;
+      /* slate-800 */
+      border-radius: 0.5rem;
+      color: #94a3b8;
+      /* slate-400 */
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.75rem 1rem;
+    }
+
+    .ProseMirror blockquote {
+      border-left: 3px solid #64748b;
+      /* slate-500 */
+      padding-left: 1rem;
+      margin-left: 0;
+      font-style: italic;
+      color: #94a3b8;
+      /* slate-400 */
+    }
+    
+    .ProseMirror hr {
+        border: none;
+        border-top: 2px solid #334155; /* slate-700 */
+        margin: 2rem 0;
+    }
+
+    /* Custom Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #18181b;
+      /* zinc-900 */
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      /* zinc-700 */
+      border-radius: 10px;
+      border: 2px solid #18181b;
+      /* zinc-900 */
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #52525b;
+      /* zinc-600 */
+    }
+
+    /* Tippy.js popup styling for slash commands */
+    .tippy-box {
+        background-color: #27272a; /* zinc-800 */
+        border: 1px solid #3f3f46; /* zinc-700 */
+        border-radius: 0.5rem;
+    }
+    .tippy-content {
+        padding: 0;
+    }
+    .tippy-arrow {
+        color: #27272a; /* zinc-800 */
+    }
+    
+    /* Chapter Status Indicators */
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+    }
+    .status-dot-idea { background-color: #38bdf8; } /* sky-400 */
+    .status-dot-draft { background-color: #facc15; } /* yellow-400 */
+    .status-dot-review { background-color: #c084fc; } /* purple-400 */
+    .status-dot-done { background-color: #4ade80; } /* green-400 */
+
+    /* Fragment Drag & Drop Target */
+    .drop-target-active {
+      background-color: #0c4a6e; /* sky-900 */
+      outline: 2px solid #38bdf8; /* sky-400 */
+    }
+    
+    /* Tag Filtering */
+    .tag-filter-active {
+      background-color: #0ea5e9; /* sky-500 */
+      color: #ffffff;
+      border-color: #0284c7 !important; /* sky-600 */
+    }
+
+  </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+
+<body class="bg-zinc-900 text-zinc-300 font-sans">
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root" class="h-screen w-screen overflow-hidden"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
