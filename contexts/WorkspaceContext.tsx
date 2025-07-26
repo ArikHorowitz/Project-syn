@@ -115,10 +115,21 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
   const workspace = synthiaData?.currentWorkspace ?? null;
   const snapshots = synthiaData?.snapshots ?? [];
 
+// Replace this old useEffect:
+// useEffect(() => {
+//   const loadedState = fileSystemApi.loadState();
+//   setSynthiaData(loadedState);
+//   setIsLoading(false);
+// }, []);
+
+// With this new async version:
   useEffect(() => {
-    const loadedState = fileSystemApi.loadState();
-    setSynthiaData(loadedState);
-    setIsLoading(false);
+    const loadData = async () => {
+      const loadedState = await fileSystemApi.loadState();
+      setSynthiaData(loadedState);
+      setIsLoading(false);
+    };
+    loadData();
   }, []);
 
   useEffect(() => {

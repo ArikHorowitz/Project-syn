@@ -1,6 +1,6 @@
-import { WorkspaceState, Toc, Fragment, SettingsState, SynthiaData } from '../types';
-
-const STORAGE_KEY = 'synthia-workspace-v2'; // Bump version to avoid conflicts
+// services/fileSystemApi.ts
+import { WorkspaceState, Toc, Fragment, SettingsState, SynthiaData, Snapshot } from '../types';
+import { db } from './db';
 
 const defaultSettings: SettingsState = {
   editor: {
@@ -13,32 +13,24 @@ const defaultSettings: SettingsState = {
 const createInitialWorkspaceState = (): WorkspaceState => {
   const now = new Date().toISOString();
 
-  // --- Fragments (from the Book Matrix) ---
-  // I've created fragments for the first few chapters as a template.
   const initialFragments: Fragment[] = [
-    // Fragments for Chapter 1.0: Stage Setting
     { id: 'frag-1-0-1', type: 'idea', tags: ['Psychological Dynamics'], content: '<p>Tension, anticipation</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-0-2', type: 'idea', tags: ['Synthesis'], content: '<p>Premonition of rupture</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-0-3', type: 'idea', tags: ['Information Control'], content: '<p>Introduction of sacred myths</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-0-4', type: 'idea', tags: ['Human Agency'], content: '<p>Implicit invitation to choose</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-0-5', type: 'idea', tags: ['Rhetorical / Tone'], content: '<p>Direct, calm address</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-0-6', type: 'idea', tags: ['Philosophical / Epistemic'], content: '<p>What is real? How do I know?</p>', createdAt: now, updatedAt: now },
-
-    // Fragments for Chapter 1.1: I Was There
     { id: 'frag-1-1-1', type: 'idea', tags: ['Psychological Dynamics'], content: '<p>Shock, moral rupture</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-1-2', type: 'idea', tags: ['Institutional Logic'], content: '<p>Security myth collapses</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-1-3', type: 'idea', tags: ['Narrative Power'], content: '<p>The gap between media narrative and lived reality</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-1-4', type: 'idea', tags: ['Rhetorical / Tone'], content: '<p>Plainspoken, confessional, stripped of detachment</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-1-5', type: 'idea', tags: ['Philosophical / Epistemic'], content: '<p>The seen vs. the believed</p>', createdAt: now, updatedAt: now },
-
-    // Fragments for Chapter 1.2: How We Were Raised
     { id: 'frag-1-2-1', type: 'idea', tags: ['Psychological Dynamics'], content: '<p>Fear shaping identity</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-2-2', type: 'idea', tags: ['Institutional Logic'], content: '<p>Childhood rituals: anthem, school, holidays</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-2-3', type: 'idea', tags: ['Narrative Power'], content: '<p>Founding myths internalized</p>', createdAt: now, updatedAt: now },
     { id: 'frag-1-2-4', type: 'idea', tags: ['Information Control'], content: '<p>No authorship - inherited belief sanitized early</p>', createdAt: now, updatedAt: now },
   ];
 
-  // --- Table of Contents (The Book Structure) ---
   const initialToc: Toc = [
     {
       id: 'part-1',
@@ -101,7 +93,7 @@ const createInitialWorkspaceState = (): WorkspaceState => {
       tabGroups: [
         {
           id: 'group-1',
-          tabs: ['ch-1-0'], // Start with the first chapter open
+          tabs: ['ch-1-0'],
           activeTabId: 'ch-1-0',
         },
       ],
@@ -127,89 +119,54 @@ const createInitialSynthiaData = (): SynthiaData => {
 };
 
 /**
- * Loads the entire application data from localStorage.
+ * Loads the entire application data from IndexedDB.
  * If no state is found, it initializes with default data.
- * Also handles migration from old data structure.
  * @returns The loaded or initial SynthiaData.
  */
-export const loadState = (): SynthiaData => {
+export const loadState = async (): Promise<SynthiaData> => {
   try {
-    const serializedState = localStorage.getItem(STORAGE_KEY);
-    if (serializedState === null) {
-      // Check for old data format for migration
-      const oldState = localStorage.getItem('synthia-workspace');
-      if (oldState) {
-        console.log('Old data format found, migrating to new structure.');
-        const oldWorkspaceState = JSON.parse(oldState) as WorkspaceState;
-        // Ensure defaults for older versions
-        if (!oldWorkspaceState.uiState.sidebarView) oldWorkspaceState.uiState.sidebarView = 'explorer';
-        if (!oldWorkspaceState.settings) oldWorkspaceState.settings = defaultSettings;
-        if (!oldWorkspaceState.uiState.hasOwnProperty('settingsOpen')) oldWorkspaceState.uiState.settingsOpen = false;
-        if (!oldWorkspaceState.uiState.activeFragmentTags) oldWorkspaceState.uiState.activeFragmentTags = [];
+    const [workspaceStore, snapshots] = await Promise.all([
+      db.workspaces.get('current'),
+      db.snapshots.toArray()
+    ]);
 
-        oldWorkspaceState.toc.forEach(part => {
-          part.chapters.forEach(chapter => {
-            if (!chapter.updatedAt) {
-              chapter.updatedAt = new Date().toISOString();
-            }
-          })
-        })
-
-        const migratedData: SynthiaData = {
-          currentWorkspace: oldWorkspaceState,
-          snapshots: [],
-        };
-        saveState(migratedData);
-        localStorage.removeItem('synthia-workspace'); // Clean up old key
-        return migratedData;
-      }
-
-      console.log('No state found, initializing with default state.');
+    if (workspaceStore) {
+      console.log('State loaded from IndexedDB.');
+      return {
+        currentWorkspace: workspaceStore.data,
+        snapshots: snapshots || [],
+      };
+    } else {
+      console.log('No state found in IndexedDB, initializing with default state.');
       const initialState = createInitialSynthiaData();
-      saveState(initialState);
+      // Save the initial state to the DB for next time
+      await saveState(initialState);
       return initialState;
     }
-    
-    console.log('State loaded from localStorage.');
-    const loaded = JSON.parse(serializedState) as SynthiaData;
-    // Perform any necessary backward compatibility checks on loaded data here
-    if (!loaded.currentWorkspace.uiState.sidebarView) {
-        loaded.currentWorkspace.uiState.sidebarView = 'explorer';
-    }
-    if ((loaded.currentWorkspace.uiState.sidebarView as any) === 'source-control') { // old value
-        loaded.currentWorkspace.uiState.sidebarView = 'history';
-    }
-    if (!loaded.currentWorkspace.uiState.activeFragmentTags) {
-        loaded.currentWorkspace.uiState.activeFragmentTags = [];
-    }
-    // Add updatedAt to chapters if they don't have it
-    loaded.currentWorkspace.toc.forEach(part => {
-      part.chapters.forEach(chapter => {
-        if (!chapter.updatedAt) {
-          chapter.updatedAt = new Date().toISOString();
-        }
-      });
-    });
-
-    return loaded;
-
   } catch (err) {
-    console.error('Could not load state from localStorage, initializing fresh.', err);
+    console.error('Could not load state from IndexedDB, initializing fresh.', err);
     const initialState = createInitialSynthiaData();
-    saveState(initialState);
+    await saveState(initialState);
     return initialState;
   }
 };
 
 /**
- * Saves the entire application data to localStorage.
+ * Saves the entire application data to IndexedDB.
  * @param data The SynthiaData to save.
  */
-export const saveState = (data: SynthiaData): void => {
+export const saveState = async (data: SynthiaData): Promise<void> => {
   try {
-    const serializedState = JSON.stringify(data);
-    localStorage.setItem(STORAGE_KEY, serializedState);
+    await db.transaction('rw', db.workspaces, db.snapshots, async () => {
+      // Save the workspace
+      await db.workspaces.put({ id: 'current', data: data.currentWorkspace });
+      // Clear and save all snapshots
+      await db.snapshots.clear();
+      if (data.snapshots.length > 0) {
+        await db.snapshots.bulkPut(data.snapshots);
+      }
+    });
   } catch (err) {
-    console.error('Could not save state to localStorage.', err);
+    console.error('Could not save state to IndexedDB.', err);
   }
 };
