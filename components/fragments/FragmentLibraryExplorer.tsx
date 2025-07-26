@@ -88,13 +88,14 @@ const FragmentItem: React.FC<FragmentItemProps> = ({ fragment }) => {
     const activeGroupId = workspace?.uiState.activeGroupId;
     const isActive = workspace?.uiState.tabGroups?.find(g => g.id === activeGroupId)?.activeTabId === fragment.id;
 
-    const {attributes, listeners, setNodeRef, transform} = useDraggable({
+    const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({
         id: `fragment-drag-${fragment.id}`,
     });
 
     const style = transform ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
         zIndex: 100, // Ensure it appears above other elements while dragging
+        opacity: isDragging ? 0.5 : 1, 
     } : undefined;
 
     // Create a plain text preview

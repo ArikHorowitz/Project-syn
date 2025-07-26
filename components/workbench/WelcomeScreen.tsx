@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useWorkspace } from '../../hooks/useWorkspace';
 import { Plus, Clock, FileText, Pencil } from 'lucide-react';
-import { Chapter, Fragment } from '../../types';
+import { Chapter, Fragment, Part } from '../../types'; // Import Part type
 
 const timeSince = (date: Date): string => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
@@ -27,8 +27,9 @@ const WelcomeScreen: React.FC = () => {
         type RecentItem = (Chapter & { docType: 'chapter' }) | (Fragment & { docType: 'fragment' });
 
         const allItems: RecentItem[] = [
-            ...workspace.toc.flatMap(p => p.chapters).map(c => ({...c, docType: 'chapter' as const })),
-            ...workspace.fragments.map(f => ({...f, docType: 'fragment' as const }))
+            // Added explicit types for p, c, and f
+            ...workspace.toc.flatMap((p: Part) => p.chapters).map((c: Chapter) => ({...c, docType: 'chapter' as const })),
+            ...workspace.fragments.map((f: Fragment) => ({...f, docType: 'fragment' as const }))
         ];
 
         return allItems
@@ -39,12 +40,12 @@ const WelcomeScreen: React.FC = () => {
 
     const handleNewChapter = () => {
         const firstPartId = workspace?.toc[0]?.id;
+        // If any part exists, add a chapter to the first one.
         if (firstPartId) {
             actions.addChapter(firstPartId);
         } else {
-            actions.addPart();
-            // Note: This won't add a chapter immediately as the new part ID is not available sync.
-            // A more robust solution might involve a callback or effect. For now, this is a good start.
+            // If no parts exist, create a new part *and* a chapter within it atomically.
+            actions.addPartAndChapter();
         }
     };
     

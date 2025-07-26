@@ -45,6 +45,7 @@ export interface WorkspaceContextType {
     // TOC D&D and CRUD
     updateToc: (newToc: Toc) => void;
     addPart: () => void;
+    addPartAndChapter: () => void;
     addChapter: (partId: string) => void;
     deletePart: (partId: string) => void;
     deleteChapter: (chapterId: string) => void;
@@ -94,6 +95,13 @@ const cleanupTabGroupsAndFocus = (uiState: UiState) => {
     if (!activeGroupStillExists || !uiState.activeGroupId) {
         uiState.activeGroupId = uiState.tabGroups[0].id;
     }
+};
+
+const openDocumentInGroup = (group: TabGroup, docId: string) => {
+    if (!group.tabs.includes(docId)) {
+        group.tabs.push(docId);
+    }
+    group.activeTabId = docId;
 };
 
 
@@ -167,10 +175,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
           }
       }
 
-      if (!activeGroup.tabs.includes(docId)) {
-        activeGroup.tabs.push(docId);
-      }
-      activeGroup.activeTabId = docId;
+      openDocumentInGroup(activeGroup, docId);
     });
   }, [setWorkspace]);
 
@@ -316,6 +321,43 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     });
   }, [setWorkspace]);
 
+  const addPartAndChapter = useCallback(() => {
+    setWorkspace(draft => {
+        const now = new Date().toISOString();
+        const newChapterId = `ch-${crypto.randomUUID()}`;
+        
+        const newChapter: Chapter = {
+            id: newChapterId,
+            title: 'Untitled Chapter',
+            status: 'idea',
+            content: '<h1>Untitled Chapter</h1>',
+            updatedAt: now,
+            fragmentIds: [],
+        };
+
+        const newPart: Part = {
+            id: `part-${crypto.randomUUID()}`,
+            title: 'Untitled Part',
+            chapters: [newChapter],
+        };
+        
+        draft.toc.push(newPart);
+        draft.uiState.renamingId = newChapterId; // Set renaming focus on the new chapter
+        
+        // Also open the new chapter in the editor
+        let activeGroup = draft.uiState.tabGroups.find(g => g.id === draft.uiState.activeGroupId);
+        if (!activeGroup && draft.uiState.tabGroups.length > 0) activeGroup = draft.uiState.tabGroups[0];
+        
+        if (activeGroup) {
+            openDocumentInGroup(activeGroup, newChapterId);
+        } else { // Handle case with no groups at all
+            const newGroup: TabGroup = { id: `group-${crypto.randomUUID()}`, tabs: [newChapterId], activeTabId: newChapterId };
+            draft.uiState.tabGroups.push(newGroup);
+            draft.uiState.activeGroupId = newGroup.id;
+        }
+    });
+  }, [setWorkspace]);
+
   const addChapter = useCallback((partId: string) => {
     setWorkspace(draft => {
       const part = draft.toc.find(p => p.id === partId);
@@ -331,6 +373,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
         };
         part.chapters.push(newChapter);
         draft.uiState.renamingId = newChapter.id;
+        openDocument(newChapter.id);
       }
     });
   }, [setWorkspace]);
@@ -475,7 +518,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
 
 
   const actions = { 
-      openChapter, openFragment, setActiveTab, closeTab, updateChapterContent, updateFragmentContent, addFragment, deleteFragment, updateFragmentMetadata, toggleBottomPanel, toggleInspector, toggleCommandPalette, linkFragmentToChapter, unlinkFragmentFromChapter, updateToc, addPart, addChapter, deletePart, deleteChapter, updateItemName, setRenamingId, splitEditor, unsplitEditor, setSplitDirection, setActiveGroup, setSidebarView, toggleSettings, updateSettings, updateChapterStatus, replaceWorkspace, createSnapshot, restoreSnapshot, deleteSnapshot, toggleFragmentTagFilter, clearFragmentTagFilters
+      openChapter, openFragment, setActiveTab, closeTab, updateChapterContent, updateFragmentContent, addFragment, deleteFragment, updateFragmentMetadata, toggleBottomPanel, toggleInspector, toggleCommandPalette, linkFragmentToChapter, unlinkFragmentFromChapter, updateToc, addPart, addPartAndChapter, addChapter, deletePart, deleteChapter, updateItemName, setRenamingId, splitEditor, unsplitEditor, setSplitDirection, setActiveGroup, setSidebarView, toggleSettings, updateSettings, updateChapterStatus, replaceWorkspace, createSnapshot, restoreSnapshot, deleteSnapshot, toggleFragmentTagFilter, clearFragmentTagFilters
   };
 
   return (
